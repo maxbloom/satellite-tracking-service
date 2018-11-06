@@ -19,8 +19,8 @@ app.config['JSON_SORT_KEYS'] = False # might cause issues but cant figure out ho
 
 # root page; could update to return a json with url inputs and examples
 @app.route('/')
-def welcome():
-    return 'Welcome to the satellite tracking page.'
+def welcome():  
+        return 'Welcome to the satellite tracking page.'
 
 # current position of a specified satellite
 @app.route('/satellite/<sat>')
@@ -58,7 +58,7 @@ def sat_data(sat):
 def state_at_time(sat):  # not sure what format time should be read in as: assuming mm-dd-yyyy hh:mm:ss
                                # and will calculate all passes for that day
     state_time = request.args.get('state_time')
-    state_dtime = datetime.strptime(state_time, "%m-%d-%Y %H:%M:%S")
+    state_dtime = datetime.strptime(state_time, "%m-%d-%Y %H:%M:%S")  #might want to use  date time ISO format
     state_dtime = state_dtime.replace(tzinfo=utc)
 
     stations_url = 'http://celestrak.com/NORAD/elements/stations.txt'
@@ -114,7 +114,7 @@ def future_passes(sat):
     sat_data = {}
     pass_num = 0
 
-    for times in range(floor(now_time_sec), floor(check_till_sec),30):
+    for times in range(floor(now_time_sec), floor(check_till_sec), 30):
         check_till_ts = datetime.utcfromtimestamp(times)
         check_till_ts = check_till_ts.replace(tzinfo=utc)
 
@@ -126,7 +126,7 @@ def future_passes(sat):
         topocentric = difference.at(t)
         el, az, distance = topocentric.altaz()
 
-        if el.degrees > 0:
+        if el.degrees > 0:  # right now it calculates every 30 seconds which is why there are so many 
                 pass_num += 1
                 visibility = True
                 sat_data.update({'Pass {}'.format(pass_num) :
