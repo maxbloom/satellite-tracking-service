@@ -46,19 +46,17 @@ def sat_data(sat):
     else:
             visibility = False
 
-    sat_dict = {'Satellite' : sat,
-                    'Current Azimuth:' : str(az.degrees),
-                    'Current Elevation:': str(el.degrees),
-                    'Current Time (UTC):' : str(t.utc_jpl()),
-                    'Visible from Austin' : visibility}
-    return jsonify(sat_dict)
+    sat_data = {'spacecraft ' : sat,
+                    'times' : t.utc_jpl(),
+                    'states' : {'azimuth' : str(az.degrees), 'elevation' : str(el.degrees)}}
+    return jsonify(sat_data)
 
 # method to retrieve the state of a satellite at some time: takes in mm-dd-yyyy hh:mm:ss format as key value
 @app.route('/satellite/<sat>/futurestate')
 def state_at_time(sat):  # not sure what format time should be read in as: assuming mm-dd-yyyy hh:mm:ss
                                # and will calculate all passes for that day
     state_time = request.args.get('state_time')
-    state_dtime = datetime.strptime(state_time, "%m-%d-%Y %H:%M:%S")  #might want to use  date time ISO format
+    state_dtime = datetime.strptime(state_time, "%Y-%m-%dT%H:%M:%SZ")  #might want to use  date time ISO format
     state_dtime = state_dtime.replace(tzinfo=utc)
 
     stations_url = 'http://celestrak.com/NORAD/elements/stations.txt'
@@ -82,19 +80,24 @@ def state_at_time(sat):  # not sure what format time should be read in as: assum
     else:
         visibility = False
 
-    sat_dict = {'Satellite' : sat,
-                'Current Azimuth:' : str(az.degrees),
-                'Current Elevation:': str(el.degrees),
-                'Current Time (UTC):' : str(t.utc_jpl()),
-                'Visible from Austin' : visibility}
+    sat_data = {'spacecraft ' : sat,
+                    'times' : t.utc_jpl(),
+                    'states' : {'azimuth' : str(az.degrees), 'elevation' : str(el.degrees)}}
     
-    return jsonify(sat_dict)
+
+#     sat_dict = {'Satellite' : sat,
+#                 'Current Azimuth:' : str(az.degrees),
+#                 'Current Elevation:': str(el.degrees),
+#                 'Current Time (UTC):' : str(t.utc_jpl()),
+#                 'Visible from Austin' : visibility}
+    
+    return jsonify(sat_data)
 
 # method to retrieve the number of passes between now and a specified future time: takes in mm-dd-yyyy hh:mm:ss format as key value
 @app.route('/satellite/<sat>/futurepass')
 def future_passes(sat):
     check_till = request.args.get('check_till')
-    check_till = datetime.strptime(check_till, "%m-%d-%Y %H:%M:%S") #might want to use  date time ISO format
+    check_till = datetime.strptime(check_till, "%Y-%m-%dT%H:%M:%SZ") #might want to use  date time ISO format
     check_till = check_till.replace(tzinfo=utc)
 
     check_till_sec = timegm(check_till.timetuple())
@@ -113,8 +116,12 @@ def future_passes(sat):
 
     sat_data = {}
     pass_num = 0
+    pass_time = []
+    state = []
+    az_json = []
+    el_json = []
 
-    for times in range(floor(now_time_sec), floor(check_till_sec), 30):
+    for times in range(floor(now_time_sec), floor(check_till_sec), 60*5):
         check_till_ts = datetime.utcfromtimestamp(times)
         check_till_ts = check_till_ts.replace(tzinfo=utc)
 
@@ -126,18 +133,52 @@ def future_passes(sat):
         topocentric = difference.at(t)
         el, az, distance = topocentric.altaz()
 
-        if el.degrees > 0:  # right now it calculates every 30 seconds which is why there are so many 
-                pass_num += 1
-                visibility = True
-                sat_data.update({'Pass {}'.format(pass_num) :
-                        {'Satellite' : sat,
-                        'Pass Initial Azimuth:' : str(az.degrees),
-                        'Pass Initial Elevation:': str(el.degrees),
-                        'Pass Initial Time (UTC):' : str(t.utc_jpl()),
-                        'Visible from Austin' : visibility}})
+        if el.degrees > 0:
+                find_pass_start_sec = times # time in seconds
+
+                # find_pass_start_time = datetime.utcfromtimestamp(find_pass_start_sec)
+                # find_pass_start_time = check_till_ts.replace(tzinfo=utc)
+
+                for check_5_min_before in range(0,(60*5),1):
+                        
+                        find_pass_start_sec -= 1  # subtract 1 second till finds the first second in view
+                        find_pass_start_time = datetime.utcfromtimestamp(find_pass_start_sec)
+                        find_pass_start_time = find_pass_start_time.replace(tzinfo=utc)
+
+                        t_check = ts.utc(find_pass_start_time)
+
+                        topocentric = difference.at(t_check)
+                        el_check, az_check, distance = topocentric.altaz()
+
+                        if el_check.degrees > 0:
+                                continue
+                        else:
+                                find_pass_start_sec += 1
+                                if find_pass_start_time in pass_time == True: 
+                                        break
+                                else:
+                                        pass_num += 1
+                                        pass_time.append(t_check.utc_jpl())
+                                        visibility = True
+                                        # az_json.append(az_check)
+                                        # el_json.append(el_check)
+                                        state.append({'azimuth' : str(az_check.degrees), 'elevation' : str(el_check.degrees)})
+                                        
+                                        # sat_data.update({'Pass {}'.format(pass_num) :
+                                        # {'Satellite' : sat,
+                                        # 'Pass Initial Azimuth:' : str(az.degrees),
+                                        # 'Pass Initial Elevation:': str(el.degrees),
+                                        # 'Pass Initial Time (UTC):' : str(pass_time.utc_jpl()),
+                                        # 'Visible from Austin' : visibility}})
+                                        break
+                
         else:
                 visibility = False
-    
+
+    sat_data.update({'spacecraft ' : sat,
+                    'times' : pass_time,
+                    'states' : state})
+
     return jsonify(sat_data)
         
 
