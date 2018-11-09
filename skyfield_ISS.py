@@ -94,7 +94,7 @@ def state_at_time(sat):  # not sure what format time should be read in as: assum
 @app.route('/satellite/<sat>/futurepass')
 def future_passes(sat):
     check_till = request.args.get('check_till')
-    check_till = datetime.strptime(check_till, "%m-%d-%Y %H:%M:%S")
+    check_till = datetime.strptime(check_till, "%m-%d-%Y %H:%M:%S") #might want to use  date time ISO format
     check_till = check_till.replace(tzinfo=utc)
 
     check_till_sec = timegm(check_till.timetuple())
@@ -141,3 +141,5 @@ def future_passes(sat):
     return jsonify(sat_data)
         
 
+# To do
+# 
